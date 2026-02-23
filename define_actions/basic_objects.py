@@ -2,7 +2,10 @@ import random
 import secrets
 import string
 import enum
-from nicegui import ui
+import zipfile
+import io
+from datetime import datetime
+from nicegui import ui,events
 from gui.components.cut_screenshot import screencut_button, cut_screenshot
 from gui.components.get_app_entrance import get_app_entrance_button
 from modules.utils import *
@@ -147,7 +150,7 @@ class ParamsObj:
             ui.input(label=self.param_gui_name).bind_value(self, 'param_value').style("width:100px")
         elif self.param_type == ParamsTypes.PICPATH:
             with ui.column():
-                screencut_button(inconfig=dataconfig, resultdict=self, resultkey='param_value')
+                screencut_button(inconfig=dataconfig, resultdict=self, resultkey='param_value', save_folder_path=dataconfig.USER_STORAGE_FOLDER)
         elif self.param_type == ParamsTypes.APKPACKAGE:
             with ui.column():
                 get_app_entrance_button(inconfig=dataconfig, resultdict=self, resultkey="param_value")
@@ -605,16 +608,85 @@ class FlowActionGroup:
     def to_json_dict(self):
         return {
             'a_l': [action.to_json_dict() for action in self.action_list],
-            # 's_d': self.status_dict
+            # 's_d': self.status_dict # 状态字典不保存,每次运行重新生成
         }
+    
+    def save_flow_into_zip(self):
+        """
+        将该操作内容打包成zip文件，zip文件内包含一个json文件保存操作内容的结构化信息，以及操作内容里涉及到的图片文件（如果有的话）
+        """
+        al_json = self.to_json_dict()
+        # 使用re找到所有 *.png 格式的字符串，保存到all_pic_paths里
+        all_pic_paths = set()
+        def find_pic_paths(obj, pic_set):
+            for k in obj:
+                # 得到集合对象内部元素
+                if isinstance(obj, list):
+                    v = k
+                elif isinstance(obj, dict):
+                    v = obj[k]
+                else:
+                    print(f"Unkown type in find_pic_paths: {type(obj)}")
+                # 字符串元素处理匹配png
+                if isinstance(v, str) and v.endswith('.png'):
+                    pic_set.add(v)
+                # 递归处理集合类型元素
+                elif isinstance(v, list) or isinstance(v, dict):
+                    find_pic_paths(v, pic_set)
+        find_pic_paths(al_json, all_pic_paths)
+        print(f"package pics: {all_pic_paths}")
+        # 压缩成zip文件，命名为flow_{YYYY-MM-DD}.zip
+        zip_filename = f"flow_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.zip"
+        with zipfile.ZipFile(zip_filename, 'w') as zipf:
+            # 写入json文件
+            zipf.writestr('flow.json', json.dumps(al_json, indent=4))
+            # 写入图片文件
+            for pic_path in all_pic_paths:
+                if os.path.exists(pic_path):
+                    zipf.write(pic_path)
+                else:
+                    print(f"Pic path not exists: {pic_path}")
+        # 弹出nicegui提醒
+        ui.notify(f"Flow saved into {zip_filename}", color="green")
+        return True
+
+    async def load_flow_from_zip(self, e:events.UploadEventArguments):
+        """
+        从zip文件中读取操作内容，zip文件内包含一个json文件保存操作内容的结构化信息，以及操作内容里涉及到的图片文件（如果有的话）
+        """
+        try:
+            # async 函数 e.file.read() 返回一个bytes对象，使用io.BytesIO把它转换成一个类文件对象，传给zipfile.ZipFile读取
+            zip_bytes = await e.file.read()
+            with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zipf:
+                # 读取json文件
+                with zipf.open('flow.json') as json_file:
+                    al_json = json.load(json_file)
+                    self.load_from_dict(al_json)
+                # 图片按照压缩包内相对路径解压出来
+                for file_info in zipf.infolist():
+                    if file_info.filename.endswith('.png'):
+                        # 判断文件如果存在则跳过解压，不存在才解压
+                        if not os.path.exists(file_info.filename):
+                            zipf.extract(file_info, path='.')
+                        else:
+                            ui.notify(f"Pic {file_info.filename} exists, skip", color="orange")
+            ui.notify(f"Flow loaded from {e.file.name}", color="green")
+            return True
+        except:
+            logging.error(traceback.format_exc())
+            ui.notify(f"Failed to load flow from zip", color="red")
+            return False
+        
 
     def render_gui(self, dataconfig):
         @ui.refreshable
         def flow_group_area():
             with ui.column():
-                # 第一行，添加按钮
+                # 第一行，添加按钮 和 导出按钮
                 with ui.row():
                     ui.button(dataconfig.get_text("button_add"), on_click=lambda x:add_flow_item(0))
+                    ui.button("Save", on_click=lambda: save_zip())
+                    ui.upload(on_upload=lambda e:upload_zip(e), max_files=1, auto_upload=True)
                 for i,action in enumerate(self.action_list):
                     with ui.card():
                         # 每个 action block
@@ -654,6 +726,13 @@ class FlowActionGroup:
             删除一个操作对象
             """
             self.action_list.pop(line_index)
+            flow_group_area.refresh()
+
+        def save_zip():
+            self.save_flow_into_zip()
+
+        async def upload_zip(e):
+            await self.load_flow_from_zip(e)
             flow_group_area.refresh()
 
     def _find_corresponding_flow_item_index_by_id(self, target_id):
