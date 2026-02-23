@@ -596,10 +596,12 @@ class FlowActionGroup:
 
     def load_from_dict(self, action_group_item:dict):
         try:
+            temp_action_list = []
             for item in action_group_item.get('a_l', []):
                 action_obj = FlowItemObj._load_flow_item_from_dict(item)
                 if action_obj:
-                    self.action_list.append(action_obj)
+                    temp_action_list.append(action_obj)
+            self.action_list = temp_action_list
             return self
         except:
             logging.error(traceback.format_exc())
