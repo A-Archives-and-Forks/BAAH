@@ -665,7 +665,11 @@ class FlowActionGroup:
                 # 图片按照压缩包内相对路径解压出来
                 for file_info in zipf.infolist():
                     if file_info.filename.endswith('.png'):
-                        zipf.extract(file_info, path='.')
+                        # 判断文件如果存在则跳过解压，不存在才解压
+                        if not os.path.exists(file_info.filename):
+                            zipf.extract(file_info, path='.')
+                        else:
+                            ui.notify(f"Pic {file_info.filename} exists, skip", color="orange")
             ui.notify(f"Flow loaded from {e.file.name}", color="green")
             return True
         except:
