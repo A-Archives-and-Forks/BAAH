@@ -34,6 +34,7 @@ import cv2
 import pythoncom
 
 def _get_hwnd(window_title):
+    """根据窗口标题获取窗口句柄，如果没找到会返回0"""
     # 使用win32gui获取更精确的客户端区域
     hwnd = win32gui.FindWindow(None, window_title)
     return hwnd
