@@ -21,7 +21,9 @@ def set_BAAH(config, shared_softwareconfig):
             ui.link("Github", web_url["github"], new_tab=True)
             ui.link("Bilibili", web_url["bilibili"], new_tab=True)
 
-        ui.label(config.get_text("BAAH_attention") + f'  {config.get_text("notice_steam_esc_break")}' if _is_PC_app(config.userconfigdict["SERVER_TYPE"]) else "" ).style('color: red; font-size: x-large')
+        with ui.row():
+            ui.label(config.get_text("BAAH_attention")).style('color: red; font-size: x-large')
+            ui.label(f'  {config.get_text("notice_steam_esc_break")}').style('color: red; font-size: x-large')
 
         # kei的教程
         with ui.row():

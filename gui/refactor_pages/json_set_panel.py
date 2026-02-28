@@ -88,8 +88,8 @@ def parse_obj_in_config(inconfig, obj_dict, backward = False):
 def get_config_list(lst_config: MyConfigger, logArea, parsed_obj_dict) -> list:
     return [
         ConfigPanel("BAAH", lambda: set_BAAH(lst_config, gui_shared_config), i18n_config=None),
-        ConfigPanel("setting_emulator", lambda: set_emulator(lst_config), i18n_config=lst_config),
         ConfigPanel("setting_server", lambda: set_server(lst_config), i18n_config=lst_config),
+        ConfigPanel("setting_emulator", lambda: set_emulator(lst_config), i18n_config=lst_config),
         ConfigPanel("setting_task_order", lambda: set_task_order(lst_config, task_instances_map.task_config_name_2_i18n_name, logArea), i18n_config=lst_config),
         ConfigPanel("setting_vpn", lambda: set_vpn(lst_config, parsed_obj_dict), i18n_config=lst_config),
         ConfigPanel("setting_notification", lambda: set_notification(lst_config, gui_shared_config), i18n_config=lst_config),
