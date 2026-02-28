@@ -63,54 +63,7 @@ def create_line_chart(storage_data_list):
     storage_data_list (list): 包含日期、credit和diamond数据的字典列表。
     """
 
-    # 获取最新日期的年份，并设置默认的年份范围
-    if storage_data_list:
-        # 遍历整个数据列表找到最新的日期
-        latest_date = datetime.min
-        for item in storage_data_list:
-            item_date = datetime.strptime(item['date'], '%Y-%m-%d')
-            if item_date > latest_date:
-                latest_date = item_date
-        if latest_date != datetime.min:
-            current_year = latest_date.year
-            default_start_date = f"{current_year}-01-01"
-            default_end_date = f"{current_year}-12-31"
-        else:
-            # 如果没有有效日期，使用当前年份
-            current_year = datetime.now().year
-            default_start_date = f"{current_year}-01-01"
-            default_end_date = f"{current_year}-12-31"
-    else:
-        # 如果没有数据，使用当前年份
-        current_year = datetime.now().year
-        default_start_date = f"{current_year}-01-01"
-        default_end_date = f"{current_year}-12-31"
 
-    # 存储日期筛选值的变量
-    with ui.row().classes('items-center gap-4'):
-        with ui.input('开始日期/Start Date', placeholder='YYYY-MM-DD', value=default_start_date) as start_date_input:
-            with ui.menu().props('no-parent-event') as start_menu:
-                with ui.date().bind_value(start_date_input):
-                    with ui.row().classes('justify-end'):
-                        ui.button('关闭/Close', on_click=start_menu.close).props('flat')
-            with start_date_input.add_slot('append'):
-                ui.icon('edit_calendar').on('click', start_menu.open).classes('cursor-pointer')
-        
-        with ui.input('结束日期/End Date', placeholder='YYYY-MM-DD', value=default_end_date) as end_date_input:
-            with ui.menu().props('no-parent-event') as end_menu:
-                with ui.date().bind_value(end_date_input):
-                    with ui.row().classes('justify-end'):
-                        ui.button('关闭/Close', on_click=end_menu.close).props('flat')
-            with end_date_input.add_slot('append'):
-                ui.icon('edit_calendar').on('click', end_menu.open).classes('cursor-pointer')
-        
-        # 添加筛选按钮
-        ui.button('应用筛选/Apply Filter', on_click=lambda: update_chart()).classes('mt-4')
-        ui.button('显示全部/Show All', on_click=lambda: (
-            setattr(start_date_input, 'value', ''), 
-            setattr(end_date_input, 'value', ''),
-            update_chart()
-        )).classes('mt-4 ml-2')
     
     # 创建初始图表数据
     dates, credits, diamonds = convert_data(storage_data_list)
@@ -224,6 +177,32 @@ def create_line_chart(storage_data_list):
     
     chart = ui.echart(options=options)
     chart.style('height: 600px; width: 100%')
+
+    # 存储日期筛选值的变量
+    with ui.row().classes('items-center gap-4'):
+        with ui.input('开始日期/Start Date', placeholder='YYYY-MM-DD', value=None) as start_date_input:
+            with ui.menu().props('no-parent-event') as start_menu:
+                with ui.date().bind_value(start_date_input):
+                    with ui.row().classes('justify-end'):
+                        ui.button('关闭/Close', on_click=start_menu.close).props('flat')
+            with start_date_input.add_slot('append'):
+                ui.icon('edit_calendar').on('click', start_menu.open).classes('cursor-pointer')
+        
+        with ui.input('结束日期/End Date', placeholder='YYYY-MM-DD', value=None) as end_date_input:
+            with ui.menu().props('no-parent-event') as end_menu:
+                with ui.date().bind_value(end_date_input):
+                    with ui.row().classes('justify-end'):
+                        ui.button('关闭/Close', on_click=end_menu.close).props('flat')
+            with end_date_input.add_slot('append'):
+                ui.icon('edit_calendar').on('click', end_menu.open).classes('cursor-pointer')
+        
+        # 添加筛选按钮
+        ui.button('应用筛选/Apply Filter', on_click=lambda: update_chart()).classes('mt-4')
+        ui.button('显示全部/Show All', on_click=lambda: (
+            setattr(start_date_input, 'value', ''), 
+            setattr(end_date_input, 'value', ''),
+            update_chart()
+        )).classes('mt-4 ml-2')
     
     def update_chart():
         # 根据筛选条件更新图表数据
@@ -234,8 +213,7 @@ def create_line_chart(storage_data_list):
         chart.options["series"][0]["data"] = [[dates[i], credits[i]] for i in range(len(dates))]
         chart.options["series"][1]["data"] = [[dates[i], diamonds[i]] for i in range(len(dates))]
         chart.update()
-    
-    update_chart()
+
     
     return chart
 

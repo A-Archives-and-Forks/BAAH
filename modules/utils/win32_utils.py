@@ -1,5 +1,6 @@
 from modules.utils.log_utils import logging, istr, CN, EN
 from modules.configs.MyConfig import config
+import traceback
 import platform
 if platform.system() != "Windows":
     mention_str = istr({
@@ -17,7 +18,7 @@ try:
     awareness = ctypes.c_int(2) # 或 2 用于多显示器环境
     ctypes.windll.shcore.SetProcessDpiAwareness(awareness)
 except Exception: # 如果失败（如旧版Windows），回退到旧API
-    print("SetProcessDpiAwareness failed, trying SetProcessDPIAware")
+    logging.warn("SetProcessDpiAwareness failed, trying SetProcessDPIAware")
     ctypes.windll.user32.SetProcessDPIAware()
 
 # pywin32
@@ -33,6 +34,7 @@ import cv2
 import pythoncom
 
 def _get_hwnd(window_title):
+    """根据窗口标题获取窗口句柄，如果没找到会返回0"""
     # 使用win32gui获取更精确的客户端区域
     hwnd = win32gui.FindWindow(None, window_title)
     return hwnd
@@ -44,7 +46,7 @@ def _get_dpi(window_title):
         screen_dpi = ctypes.windll.shcore.GetDpiForSystem()
     except:
         screen_dpi = ctypes.windll.user32.GetDpiForSystem()
-    print(f"System DPI: {screen_dpi}")
+    logging.info(f"System DPI: {screen_dpi}")
     return screen_dpi
 
 def check_esc_is_pressed():
@@ -101,7 +103,11 @@ def _wrap_activate_window(func):
     def wrapper(*args, **kwargs):
         # 窗口不存在的异常交由里层func处理
         try:
-            window_title = config.userconfigdict["ACTIVITY_PATH"].split("/")[0]
+            # 尝试从kwargs获取use_config，如果没有则使用全局config
+            use_config = kwargs.get("use_config", None)
+            if not use_config:
+                use_config = config
+            window_title = use_config.userconfigdict["ACTIVITY_PATH"].split("/")[0]
             hwnd = _get_hwnd(window_title)
 
             # 2. 恢复窗口（如果它被最小化）
@@ -138,7 +144,7 @@ def _wrap_activate_window(func):
                 }))
                 _change_window_client_size(window_title)
         except Exception as e:
-            print(f"wrap Exception: {str(e)}")
+            logging.error(f"wrap Exception: {str(e)}\n{traceback.format_exc()}")
         result = func(*args, **kwargs)
         return result
     return wrapper
@@ -226,12 +232,14 @@ def _scroll_in_multiple_screens(x1, y1, x2, y2, duration_ms):
     win32api.mouse_event(win32con.MOUSEEVENTF_ABSOLUTE | win32con.MOUSEEVENTF_VIRTUALDESK | win32con.MOUSEEVENTF_LEFTUP, normalized_x2, normalized_y2, 0, 0)
 
 @_wrap_activate_window
-def capture_program_window_precise():
+def capture_program_window_precise(use_config = None):
     """
     精确截取程序窗口的客户端区域（不含标题栏和边框）
     """
     try:
-        window_title = config.userconfigdict["ACTIVITY_PATH"].split("/")[0]
+        if not use_config:
+            use_config = config
+        window_title = use_config.userconfigdict["ACTIVITY_PATH"].split("/")[0]
 
         client_window_info = _get_window_client_pos(window_title)
         cx, cy, cw, ch = client_window_info[0]
@@ -245,36 +253,40 @@ def capture_program_window_precise():
         image_array_bgr = cv2.cvtColor(image_array, cv2.COLOR_RGB2BGR)
         return image_array_bgr
     except Exception as e:
-        print(f"错误: {str(e)}")
+        logging.error(f"capture_program_window_precise Exception: {str(e)}\n{traceback.format_exc()}")
         return None
 
 @_wrap_activate_window
-def click_program_window_precise(x, y):
+def click_program_window_precise(x, y, use_config = None):
     """
     点击clientWindow相对位置
     """
     if check_esc_is_pressed():
         raise KeyboardInterrupt("Esc key pressed, program terminated")
     try:
-        window_title = config.userconfigdict["ACTIVITY_PATH"].split("/")[0]
+        if not use_config:
+            use_config = config
+        window_title = use_config.userconfigdict["ACTIVITY_PATH"].split("/")[0]
         client_window_info = _get_window_client_pos(window_title)
         cx, cy, cw, ch = client_window_info[0]
         # print(client_x, client_y)
         _click_in_multiple_screens(cx+x, cy+y)
     except Exception as e:
-        print(str(e))
+        logging.error(f"click_program_window_precise Exception: {str(e)}\n{traceback.format_exc()}")
 
 @_wrap_activate_window
-def scroll_program_window_precise(x1, y1, x2, y2, duration_ms):
+def scroll_program_window_precise(x1, y1, x2, y2, duration_ms, use_config = None):
     if check_esc_is_pressed():
         raise KeyboardInterrupt("Esc key pressed, program terminated")
     try:
-        window_title = config.userconfigdict["ACTIVITY_PATH"].split("/")[0]
+        if not use_config:
+            use_config = config
+        window_title = use_config.userconfigdict["ACTIVITY_PATH"].split("/")[0]
         client_window_info = _get_window_client_pos(window_title)
         cx, cy, cw, ch = client_window_info[0]
         _scroll_in_multiple_screens(cx+x1, cy+y1, cx+x2, cy+y2, duration_ms)
     except Exception as e:
-        print(str(e))
+        logging.error(f"scroll_program_window_precise Exception: {str(e)}\n{traceback.format_exc()}")
 
 
 if __name__ == "__main__":

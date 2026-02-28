@@ -111,7 +111,7 @@ def screen_shot_to_global(use_config=None, output_png=False):
         # 方法一，重定向输出到文件
         filename = target_config.userconfigdict['SCREENSHOT_NAME']
         if _is_PC_app(target_config.userconfigdict["SERVER_TYPE"]):
-            img_array = capture_program_window_precise()
+            img_array = capture_program_window_precise(use_config=target_config)
             try:
                 cv2.imwrite("./{}".format(filename), img_array)
             except Exception as e:
@@ -129,7 +129,7 @@ def screen_shot_to_global(use_config=None, output_png=False):
         # 方法二，使用cv2提取PIPE管道中的数据
         # 使用subprocess的Popen调用adb shell命令，并将结果保存到PIPE管道中
         if _is_PC_app(target_config.userconfigdict["SERVER_TYPE"]):
-            img_array = capture_program_window_precise()
+            img_array = capture_program_window_precise(use_config=target_config)
             img_screenshot = img_array
         else:
             process = subprocess.run([get_config_adb_path(target_config), "-s", getNewestSeialNumber(target_config), "shell", "screencap", "-p"], stdout=subprocess.PIPE)

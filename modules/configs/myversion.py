@@ -1,7 +1,9 @@
-myversion = "2.1.6"
+myversion = "2.1.7"
 mychangelog = """
 >> BAAH2: https://baah.sanmusen.top/ <<
 
-添加自定义任务导入导出功能 | Add custom task import and export function
+修复 GUI 内无法截图 PC端 ba 的问题 | Fix the problem that cannot screenshot ba in GUI
+
+优化排版和部分文字 | Optimize layout and text
 
 """
